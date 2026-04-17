@@ -75,6 +75,13 @@
   --diff-add-fg: oklch(0.30 0.15 150);
   --diff-remove-bg: oklch(0.92 0.10 25);
   --diff-remove-fg: oklch(0.35 0.18 25);
+
+  --brand-from: oklch(0.62 0.22 280);
+  --brand-to: oklch(0.65 0.24 320);
+  --gradient-brand: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  --gradient-hero: radial-gradient(ellipse at top, color-mix(in oklab, var(--brand-from) 18%, transparent), transparent 60%);
+  --shadow-elegant: 0 10px 40px -12px color-mix(in oklab, var(--brand-from) 35%, transparent);
+  --shadow-card: 0 1px 3px oklch(0 0 0 / 0.04), 0 8px 24px -8px oklch(0 0 0 / 0.08);
 }
 
 .dark {
@@ -109,6 +116,13 @@
   --diff-add-fg: oklch(0.92 0.12 150);
   --diff-remove-bg: oklch(0.35 0.12 25);
   --diff-remove-fg: oklch(0.92 0.12 25);
+
+  --brand-from: oklch(0.70 0.20 280);
+  --brand-to: oklch(0.72 0.22 320);
+  --gradient-brand: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  --gradient-hero: radial-gradient(ellipse at top, color-mix(in oklab, var(--brand-from) 22%, transparent), transparent 60%);
+  --shadow-elegant: 0 10px 40px -12px color-mix(in oklab, var(--brand-from) 50%, transparent);
+  --shadow-card: 0 1px 3px oklch(0 0 0 / 0.3), 0 8px 24px -8px oklch(0 0 0 / 0.4);
 }
 
 @layer base {
