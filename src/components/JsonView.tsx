@@ -182,8 +182,6 @@ export function countMatches(value: Json, q: string): number {
     (sum, [k, v]) => sum + countOccurrences(k, q) + countMatches(v, q),
     0,
   );
-    0,
-  );
 }
 
 // Cursor object so we can assign sequential global indices during render.
