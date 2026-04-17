@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { JsonView } from "./JsonView";
 import { toast } from "sonner";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+
+const DEFAULT_JSON = `{\n  "name": "Lovable",\n  "active": true,\n  "count": 42,\n  "tags": ["json", "diff", "tools"],\n  "meta": { "nested": { "ok": null } }\n}`;
 
 export function JsonFormatter() {
-  const [input, setInput] = useState<string>(
-    `{\n  "name": "Lovable",\n  "active": true,\n  "count": 42,\n  "tags": ["json", "diff", "tools"],\n  "meta": { "nested": { "ok": null } }\n}`,
-  );
+  const [input, setInput] = useLocalStorage<string>("devtoools.json.input", DEFAULT_JSON);
   const [expandSignal, setExpandSignal] = useState(0);
   const [collapseSignal, setCollapseSignal] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
