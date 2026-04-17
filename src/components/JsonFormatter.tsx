@@ -26,7 +26,7 @@ export function JsonFormatter() {
   const isSearchPending = search !== debouncedSearch;
   const [matchCount, setMatchCount] = useState(0);
   const [activeMatch, setActiveMatch] = useState(0);
-  const [matchInfo, setMatchInfo] = useState<JsonViewMatchInfo>({ positions: [], total: 0 });
+  const [matchInfo, setMatchInfo] = useState<JsonViewMatchInfo>({ positions: [], total: 0, scrollHeight: 0, clientHeight: 0 });
   const fileRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -270,6 +270,8 @@ export function JsonFormatter() {
           {effectiveSearch && matchInfo.total > 0 && (
             <MatchScrollbarOverlay
               positions={matchInfo.positions}
+              scrollHeight={matchInfo.scrollHeight}
+              clientHeight={matchInfo.clientHeight}
               activeIndex={activeMatch}
               onTickClick={(idx) => setActiveMatch(idx)}
               topOffset={48}
