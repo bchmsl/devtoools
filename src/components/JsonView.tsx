@@ -4,18 +4,92 @@ import { cn } from "@/lib/utils";
 
 type Json = string | number | boolean | null | Json[] | { [k: string]: Json };
 
+// ---------------------------------------------------------------------------
+// Match enumeration
+// ---------------------------------------------------------------------------
+// A "match" is one occurrence of the query inside either a key or a primitive
+// value. Each match has a stable global index (document order) and a path
+// describing which ancestors must be open for it to be visible.
+
+type MatchInfo = {
+  /** Path of ancestor object/array node ids (joined keys) that must be open. */
+  ancestorPath: string[];
+  /** Path key of the leaf (key string or primitive value position). */
+  leafPathKey: string;
+  /** Whether the match is on a key (vs. a primitive value). */
+  isKey: boolean;
+  /** Local index of this occurrence within the leaf's text. */
+  localIndex: number;
+};
+
+function countOccurrences(text: string, q: string): number {
+  if (!q) return 0;
+  const lower = text.toLowerCase();
+  let i = 0;
+  let count = 0;
+  while (i < lower.length) {
+    const idx = lower.indexOf(q, i);
+    if (idx === -1) break;
+    count++;
+    i = idx + q.length;
+  }
+  return count;
+}
+
+function collectMatches(
+  value: Json,
+  q: string,
+  ancestorPath: string[],
+  pathKey: string,
+  out: MatchInfo[],
+): void {
+  if (!q) return;
+  if (value === null) return;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    const text = String(value);
+    const n = countOccurrences(text, q);
+    for (let i = 0; i < n; i++) {
+      out.push({ ancestorPath, leafPathKey: pathKey, isKey: false, localIndex: i });
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    const childAncestor = [...ancestorPath, pathKey];
+    for (let i = 0; i < value.length; i++) {
+      collectMatches(value[i], q, childAncestor, pathKey ? `${pathKey}.${i}` : String(i), out);
+    }
+    return;
+  }
+  const childAncestor = [...ancestorPath, pathKey];
+  for (const [k, v] of Object.entries(value)) {
+    const childPath = pathKey ? `${pathKey}.${k}` : k;
+    const n = countOccurrences(k, q);
+    for (let i = 0; i < n; i++) {
+      out.push({ ancestorPath: childAncestor, leafPathKey: childPath, isKey: true, localIndex: i });
+    }
+    collectMatches(v, q, childAncestor, childPath, out);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Highlight + Primitive
+// ---------------------------------------------------------------------------
+
+type RegisterRef = (globalIdx: number, el: HTMLElement | null) => void;
+
 function Highlight({
   text,
   query,
-  matchStartIndex,
+  matchIndices,
   activeMatchIndex,
   registerRef,
 }: {
   text: string;
   query: string;
-  matchStartIndex: number; // global index of the first match within this text
+  /** Global indices of each match within `text`, in order. */
+  matchIndices: number[];
   activeMatchIndex: number;
-  registerRef: (globalIdx: number, el: HTMLElement | null) => void;
+  registerRef: RegisterRef;
 }) {
   if (!query) return <span>{text}</span>;
   const lower = text.toLowerCase();
@@ -37,13 +111,15 @@ function Highlight({
     <span>
       {parts.map((p, idx) => {
         if (!p.match) return <span key={idx}>{p.text}</span>;
-        const globalIdx = matchStartIndex + localMatch;
+        const globalIdx = matchIndices[localMatch] ?? -1;
         localMatch++;
         const isActive = globalIdx === activeMatchIndex;
         return (
           <mark
             key={idx}
-            ref={(el) => registerRef(globalIdx, el)}
+            ref={(el) => {
+              if (globalIdx >= 0) registerRef(globalIdx, el);
+            }}
             className={cn(
               "rounded-sm text-foreground",
               isActive ? "bg-primary/70 ring-2 ring-primary" : "bg-primary/30",
@@ -60,15 +136,15 @@ function Highlight({
 function Primitive({
   value,
   query,
-  matchStartIndex,
+  matchIndices,
   activeMatchIndex,
   registerRef,
 }: {
   value: Exclude<Json, object>;
   query: string;
-  matchStartIndex: number;
+  matchIndices: number[];
   activeMatchIndex: number;
-  registerRef: (globalIdx: number, el: HTMLElement | null) => void;
+  registerRef: RegisterRef;
 }) {
   if (value === null) return <span className="text-json-null">null</span>;
   if (typeof value === "string")
@@ -78,7 +154,7 @@ function Primitive({
         <Highlight
           text={value}
           query={query}
-          matchStartIndex={matchStartIndex}
+          matchIndices={matchIndices}
           activeMatchIndex={activeMatchIndex}
           registerRef={registerRef}
         />
@@ -91,7 +167,7 @@ function Primitive({
         <Highlight
           text={String(value)}
           query={query}
-          matchStartIndex={matchStartIndex}
+          matchIndices={matchIndices}
           activeMatchIndex={activeMatchIndex}
           registerRef={registerRef}
         />
@@ -103,7 +179,7 @@ function Primitive({
         <Highlight
           text={String(value)}
           query={query}
-          matchStartIndex={matchStartIndex}
+          matchIndices={matchIndices}
           activeMatchIndex={activeMatchIndex}
           registerRef={registerRef}
         />
@@ -143,49 +219,9 @@ function Collapsible({
   );
 }
 
-function nodeMatches(value: Json, q: string): boolean {
-  if (!q) return false;
-  if (value === null) return false;
-  if (typeof value === "string") return value.toLowerCase().includes(q);
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value).toLowerCase().includes(q);
-  if (Array.isArray(value)) return value.some((v) => nodeMatches(v, q));
-  return Object.entries(value).some(
-    ([k, v]) => k.toLowerCase().includes(q) || nodeMatches(v, q),
-  );
-}
-
-function countOccurrences(text: string, q: string): number {
-  if (!q) return 0;
-  const lower = text.toLowerCase();
-  let i = 0;
-  let count = 0;
-  while (i < lower.length) {
-    const idx = lower.indexOf(q, i);
-    if (idx === -1) break;
-    count++;
-    i = idx + q.length;
-  }
-  return count;
-}
-
-// Total match count across all keys and primitive values, in document order.
-export function countMatches(value: Json, q: string): number {
-  if (!q) return 0;
-  if (value === null) return 0;
-  if (typeof value === "string") return countOccurrences(value, q);
-  if (typeof value === "number" || typeof value === "boolean")
-    return countOccurrences(String(value), q);
-  if (Array.isArray(value))
-    return value.reduce<number>((sum, v) => sum + countMatches(v, q), 0);
-  return Object.entries(value).reduce<number>(
-    (sum, [k, v]) => sum + countOccurrences(k, q) + countMatches(v, q),
-    0,
-  );
-}
-
-// Cursor object so we can assign sequential global indices during render.
-type MatchCursor = { idx: number };
+// ---------------------------------------------------------------------------
+// Node
+// ---------------------------------------------------------------------------
 
 function Node({
   value,
@@ -193,7 +229,12 @@ function Node({
   expandSignal,
   collapseSignal,
   query,
-  cursor,
+  pathKey,
+  /** Map from leaf path key + scope ("key" | "value") → list of global indices. */
+  keyMatches,
+  valueMatches,
+  /** Set of pathKeys that should be force-open because a match lives inside them. */
+  openPaths,
   activeMatchIndex,
   registerRef,
 }: {
@@ -202,9 +243,12 @@ function Node({
   expandSignal: number;
   collapseSignal: number;
   query: string;
-  cursor: MatchCursor;
+  pathKey: string;
+  keyMatches: Map<string, number[]>;
+  valueMatches: Map<string, number[]>;
+  openPaths: Set<string> | null;
   activeMatchIndex: number;
-  registerRef: (globalIdx: number, el: HTMLElement | null) => void;
+  registerRef: RegisterRef;
 }) {
   const [open, setOpen] = useState(depth < 2);
   const lowerQ = query.toLowerCase();
@@ -217,28 +261,19 @@ function Node({
     if (collapseSignal > 0) setOpen(false);
   }, [collapseSignal]);
 
-  // When searching: open nodes that contain matches, collapse those that don't.
+  // While searching, force this node open iff a match lives inside it.
+  // When the query clears we leave the user's manual state alone.
   useEffect(() => {
-    if (!lowerQ) return;
-    if (value !== null && typeof value === "object") {
-      setOpen(nodeMatches(value, lowerQ));
-    }
-  }, [lowerQ, value]);
+    if (!lowerQ || !openPaths) return;
+    setOpen(openPaths.has(pathKey));
+  }, [lowerQ, openPaths, pathKey]);
 
   if (value === null || typeof value !== "object") {
-    const startIdx = cursor.idx;
-    const text =
-      typeof value === "string"
-        ? value
-        : typeof value === "number" || typeof value === "boolean"
-          ? String(value)
-          : "";
-    cursor.idx += countOccurrences(text, lowerQ);
     return (
       <Primitive
         value={value as Exclude<Json, object>}
         query={lowerQ}
-        matchStartIndex={startIdx}
+        matchIndices={valueMatches.get(pathKey) ?? []}
         activeMatchIndex={activeMatchIndex}
         registerRef={registerRef}
       />
@@ -254,61 +289,58 @@ function Node({
     return <span className="text-json-punctuation">{isArray ? "[]" : "{}"}</span>;
   }
 
-  // If this branch is closed, advance the cursor by the number of hidden matches
-  // so subsequent siblings still get correct global indices.
-  if (!open) {
-    cursor.idx += countMatches(value, lowerQ);
-    return (
-      <span>
-        <Collapsible open={open} setOpen={setOpen} bracket={isArray ? "[]" : "{}"} size={entries.length} />
-      </span>
-    );
-  }
-
   return (
     <span>
       <Collapsible open={open} setOpen={setOpen} bracket={isArray ? "[]" : "{}"} size={entries.length} />
-      <div className="border-l border-border/60 ml-2 pl-3">
-        {entries.map(([k, v], i) => {
-          const keyStartIdx = cursor.idx;
-          if (!isArray) cursor.idx += countOccurrences(k, lowerQ);
-          return (
-            <div key={k} className="leading-6">
-              {!isArray && (
-                <>
-                  <span className="text-json-key">
-                    "
-                    <Highlight
-                      text={k}
-                      query={lowerQ}
-                      matchStartIndex={keyStartIdx}
-                      activeMatchIndex={activeMatchIndex}
-                      registerRef={registerRef}
-                    />
-                    "
-                  </span>
-                  <span className="text-json-punctuation">: </span>
-                </>
-              )}
-              <Node
-                value={v}
-                depth={depth + 1}
-                expandSignal={expandSignal}
-                collapseSignal={collapseSignal}
-                query={query}
-                cursor={cursor}
-                activeMatchIndex={activeMatchIndex}
-                registerRef={registerRef}
-              />
-              {i < entries.length - 1 && <span className="text-json-punctuation">,</span>}
-            </div>
-          );
-        })}
-        <span className="text-json-punctuation">{isArray ? "]" : "}"}</span>
-      </div>
+      {open && (
+        <div className="border-l border-border/60 ml-2 pl-3">
+          {entries.map(([k, v], i) => {
+            const childPath = pathKey ? `${pathKey}.${k}` : k;
+            return (
+              <div key={k} className="leading-6">
+                {!isArray && (
+                  <>
+                    <span className="text-json-key">
+                      "
+                      <Highlight
+                        text={k}
+                        query={lowerQ}
+                        matchIndices={keyMatches.get(childPath) ?? []}
+                        activeMatchIndex={activeMatchIndex}
+                        registerRef={registerRef}
+                      />
+                      "
+                    </span>
+                    <span className="text-json-punctuation">: </span>
+                  </>
+                )}
+                <Node
+                  value={v}
+                  depth={depth + 1}
+                  expandSignal={expandSignal}
+                  collapseSignal={collapseSignal}
+                  query={query}
+                  pathKey={childPath}
+                  keyMatches={keyMatches}
+                  valueMatches={valueMatches}
+                  openPaths={openPaths}
+                  activeMatchIndex={activeMatchIndex}
+                  registerRef={registerRef}
+                />
+                {i < entries.length - 1 && <span className="text-json-punctuation">,</span>}
+              </div>
+            );
+          })}
+          <span className="text-json-punctuation">{isArray ? "]" : "}"}</span>
+        </div>
+      )}
     </span>
   );
 }
+
+// ---------------------------------------------------------------------------
+// JsonView
+// ---------------------------------------------------------------------------
 
 export function JsonView({
   value,
@@ -328,28 +360,62 @@ export function JsonView({
   const refs = useRef<Map<number, HTMLElement>>(new Map());
   const lowerQ = query.toLowerCase();
 
-  const totalMatches = useMemo(() => countMatches(value, lowerQ), [value, lowerQ]);
+  // Pre-compute every match in document order. Each entry's array index is its
+  // global match index used by the navigation buttons.
+  const { matches, keyMatches, valueMatches, openPaths } = useMemo(() => {
+    const all: MatchInfo[] = [];
+    if (lowerQ) collectMatches(value, lowerQ, [], "", all);
+
+    const keyM = new Map<string, number[]>();
+    const valM = new Map<string, number[]>();
+    const opens = new Set<string>();
+    all.forEach((m, globalIdx) => {
+      const target = m.isKey ? keyM : valM;
+      const existing = target.get(m.leafPathKey);
+      if (existing) existing.push(globalIdx);
+      else target.set(m.leafPathKey, [globalIdx]);
+      for (const a of m.ancestorPath) opens.add(a);
+    });
+    return {
+      matches: all,
+      keyMatches: keyM,
+      valueMatches: valM,
+      openPaths: lowerQ ? opens : null,
+    };
+  }, [value, lowerQ]);
+
+  const totalMatches = matches.length;
 
   useEffect(() => {
     onMatchCountChange?.(totalMatches);
   }, [totalMatches, onMatchCountChange]);
 
-  // Reset ref map on each render pass (refs get re-registered during render).
+  // Reset the ref registry on every render — children re-register synchronously.
   refs.current = new Map();
-  const registerRef = (globalIdx: number, el: HTMLElement | null) => {
+  const registerRef: RegisterRef = (globalIdx, el) => {
     if (el) refs.current.set(globalIdx, el);
   };
 
+  // Scroll to the active match after the tree has settled (auto-expand effects
+  // run after render, so wait a tick for the mark element to mount).
   useEffect(() => {
     if (!lowerQ || totalMatches === 0) return;
-    const id = window.setTimeout(() => {
+    let cancelled = false;
+    const tryScroll = (attempt: number) => {
+      if (cancelled) return;
       const el = refs.current.get(activeMatchIndex);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 60);
-    return () => window.clearTimeout(id);
-  }, [lowerQ, activeMatchIndex, totalMatches, value]);
-
-  const cursor: MatchCursor = { idx: 0 };
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      if (attempt < 8) window.setTimeout(() => tryScroll(attempt + 1), 40);
+    };
+    const id = window.setTimeout(() => tryScroll(0), 30);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [lowerQ, activeMatchIndex, totalMatches]);
 
   return (
     <div className="font-mono text-sm whitespace-pre-wrap break-words">
@@ -358,7 +424,10 @@ export function JsonView({
         expandSignal={expandSignal}
         collapseSignal={collapseSignal}
         query={query}
-        cursor={cursor}
+        pathKey=""
+        keyMatches={keyMatches}
+        valueMatches={valueMatches}
+        openPaths={openPaths}
         activeMatchIndex={activeMatchIndex}
         registerRef={registerRef}
       />
