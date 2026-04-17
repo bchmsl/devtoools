@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
 type Mode = "encode" | "decode";
 
@@ -26,8 +27,8 @@ function decode(s: string): { ok: true; value: string } | { ok: false; error: st
 }
 
 export function Base64Tool() {
-  const [mode, setMode] = useState<Mode>("encode");
-  const [input, setInput] = useState("Hello, Lovable!");
+  const [mode, setMode] = useLocalStorage<Mode>("devtoools.base64.mode", "encode");
+  const [input, setInput] = useLocalStorage<string>("devtoools.base64.input", "Hello, Lovable!");
 
   const output = useMemo(() => {
     if (!input) return { ok: true as const, value: "" };

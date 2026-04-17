@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { diffLines, diffWordsWithSpace, type Change } from "diff";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
 type Mode = "lines" | "words";
 
@@ -30,9 +31,9 @@ function DiffView({ changes }: { changes: Change[] }) {
 }
 
 export function TextDiff() {
-  const [a, setA] = useState("The quick brown fox jumps over the lazy dog.");
-  const [b, setB] = useState("The quick red fox leaps over a sleepy dog.");
-  const [mode, setMode] = useState<Mode>("words");
+  const [a, setA] = useLocalStorage<string>("devtoools.diff.a", "The quick brown fox jumps over the lazy dog.");
+  const [b, setB] = useLocalStorage<string>("devtoools.diff.b", "The quick red fox leaps over a sleepy dog.");
+  const [mode, setMode] = useLocalStorage<Mode>("devtoools.diff.mode", "words");
 
   const changes = useMemo(
     () => (mode === "lines" ? diffLines(a, b) : diffWordsWithSpace(a, b)),
