@@ -34,7 +34,7 @@ function Highlight({
         p.match ? (
           <mark
             key={idx}
-            className="rounded-sm bg-yellow-300/70 text-foreground dark:bg-yellow-500/50"
+            className="rounded-sm bg-primary/30 text-foreground"
           >
             {p.text}
           </mark>
