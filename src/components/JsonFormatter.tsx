@@ -105,7 +105,7 @@ export function JsonFormatter() {
             {stats.lines} lines · {stats.chars} chars · {stats.bytes} B
           </span>
           {parsed.ok && parsed.value !== undefined && (
-            <span className="text-emerald-600 dark:text-emerald-400">Valid JSON</span>
+            <span className="text-json-boolean">Valid JSON</span>
           )}
         </div>
         {!parsed.ok && (
