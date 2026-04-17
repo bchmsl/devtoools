@@ -175,7 +175,10 @@ export function JsonFormatter() {
             Copy formatted
           </Button>
         </div>
-        <div className="rounded-lg border bg-card min-h-[480px] max-h-[calc(100vh-12rem)] overflow-auto relative">
+        <div
+          ref={scrollContainerRef}
+          className="rounded-lg border bg-card min-h-[480px] max-h-[calc(100vh-12rem)] overflow-auto relative"
+        >
           <div className="sticky top-0 z-10 flex items-center gap-2 bg-card/95 backdrop-blur-sm border-b px-3 py-2">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -242,7 +245,7 @@ export function JsonFormatter() {
               <ChevronDown className="h-4 w-4" />
             </Button>
           </div>
-          <div className="p-4">
+          <div className="p-4 pr-6">
             {parsed.ok ? (
               parsed.value === undefined ? (
                 <p className="text-sm text-muted-foreground">Output will appear here.</p>
@@ -254,12 +257,22 @@ export function JsonFormatter() {
                   query={effectiveSearch}
                   activeMatchIndex={activeMatch}
                   onMatchCountChange={setMatchCount}
+                  onMatchPositionsChange={setMatchInfo}
+                  scrollContainerRef={scrollContainerRef}
                 />
               )
             ) : (
               <p className="text-sm text-muted-foreground">Fix errors to preview JSON.</p>
             )}
           </div>
+          {effectiveSearch && matchInfo.total > 0 && (
+            <MatchScrollbarOverlay
+              positions={matchInfo.positions}
+              activeIndex={activeMatch}
+              onTickClick={(idx) => setActiveMatch(idx)}
+              topOffset={48}
+            />
+          )}
         </div>
       </div>
     </div>
