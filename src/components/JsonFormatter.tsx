@@ -125,12 +125,11 @@ export function JsonFormatter() {
             onChange={handleUpload}
           />
         </div>
-        <Textarea
+        <JsonEditor
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          spellCheck={false}
+          onChange={setInput}
           placeholder="Paste your JSON here..."
-          className="min-h-[480px] font-mono text-sm"
+          className="min-h-[480px]"
         />
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
