@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { JsonView } from "./JsonView";
 import { toast } from "sonner";
 import { useLocalStorage } from "@/hooks/use-local-storage";
@@ -14,7 +14,23 @@ export function JsonFormatter() {
   const [expandSignal, setExpandSignal] = useState(0);
   const [collapseSignal, setCollapseSignal] = useState(0);
   const [search, setSearch] = useState("");
+  const [matchCount, setMatchCount] = useState(0);
+  const [activeMatch, setActiveMatch] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Reset active match when the search term changes.
+  useEffect(() => {
+    setActiveMatch(0);
+  }, [search]);
+
+  const goPrev = () => {
+    if (matchCount === 0) return;
+    setActiveMatch((i) => (i - 1 + matchCount) % matchCount);
+  };
+  const goNext = () => {
+    if (matchCount === 0) return;
+    setActiveMatch((i) => (i + 1) % matchCount);
+  };
 
   const parsed = useMemo(() => {
     if (!input.trim()) return { ok: true as const, value: undefined };
@@ -147,25 +163,57 @@ export function JsonFormatter() {
             Copy formatted
           </Button>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search keys and values..."
-            disabled={!parsed.ok || parsed.value === undefined}
-            className="pl-8 pr-8"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (e.shiftKey) goPrev();
+                  else goNext();
+                }
+              }}
+              placeholder="Search keys and values..."
+              disabled={!parsed.ok || parsed.value === undefined}
+              className="pl-8 pr-20"
+            />
+            {search && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {matchCount === 0 ? "0/0" : `${activeMatch + 1}/${matchCount}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={goPrev}
+            disabled={!search || matchCount === 0}
+            aria-label="Previous match"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={goNext}
+            disabled={!search || matchCount === 0}
+            aria-label="Next match"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
         </div>
         <div className="rounded-lg border bg-card p-4 min-h-[480px] overflow-auto">
           {parsed.ok ? (
@@ -177,6 +225,8 @@ export function JsonFormatter() {
                 expandSignal={expandSignal}
                 collapseSignal={collapseSignal}
                 query={search}
+                activeMatchIndex={activeMatch}
+                onMatchCountChange={setMatchCount}
               />
             )
           ) : (
