@@ -15,14 +15,22 @@ export function JsonFormatter() {
   const [expandSignal, setExpandSignal] = useState(0);
   const [collapseSignal, setCollapseSignal] = useState(0);
   const [search, setSearch] = useState("");
+  // Debounce search to avoid freezing the UI while typing into very large JSON.
+  const debouncedSearch = useDebouncedValue(search, 250);
+  // Skip very short queries (1 char) on huge documents — they match too much
+  // and would freeze the render. Empty query and 2+ chars are honored.
+  const isHuge = input.length > 200_000;
+  const effectiveSearch =
+    debouncedSearch.length === 0 ? "" : isHuge && debouncedSearch.length < 2 ? "" : debouncedSearch;
+  const isSearchPending = search !== debouncedSearch;
   const [matchCount, setMatchCount] = useState(0);
   const [activeMatch, setActiveMatch] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Reset active match when the search term changes.
+  // Reset active match when the (effective) search term changes.
   useEffect(() => {
     setActiveMatch(0);
-  }, [search]);
+  }, [effectiveSearch]);
 
   const goPrev = () => {
     if (matchCount === 0) return;
