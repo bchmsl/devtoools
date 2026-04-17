@@ -2,25 +2,34 @@
 
 Lightweight, privacy-first developer utilities that run entirely in the browser. Your data never leaves your machine.
 
+> **🔗 Live App: [devtoools.lovable.app](https://devtoools.lovable.app/)**
+
 ## ✨ Features
+
+All tools persist your input in **local storage** so your work survives page reloads, and a **dark / light theme toggle** lets you match your system preference.
 
 ### JSON Formatter
 
-- Paste or upload JSON and instantly view a pretty-printed, syntax-highlighted tree
+- Paste or upload a JSON file and instantly view a pretty-printed, syntax-highlighted tree
 - Collapse / expand individual nodes or the entire tree at once
-- Copy the formatted output or minified version with a single click
-- Shows live stats (character count, byte size, line count)
+- **Format** or **Minify** your JSON with one click
+- Copy the raw input or the formatted output to the clipboard
+- **Download** the formatted JSON as a file
+- Live stats bar showing line count, character count, and byte size
+- Real-time validation indicator (valid / invalid JSON)
 
 ### Text Diff
 
 - Compare two blocks of text side by side
-- Switch between **line-level** and **word-level** diff modes
+- Switch between **word-level** and **line-level** diff modes
 - Additions and removals are clearly highlighted with color coding
+- Live diff stats showing characters added (+) and removed (−)
 
 ### Base64 Encoder / Decoder
 
 - Encode any UTF-8 string to Base64 or decode Base64 back to text
 - Full Unicode support
+- **Swap** input and output to quickly toggle between encoding and decoding
 - One-click copy of results
 
 ## 🛠 Tech Stack
@@ -31,6 +40,7 @@ Lightweight, privacy-first developer utilities that run entirely in the browser.
 | Routing | [TanStack Router](https://tanstack.com/router) |
 | Styling | [Tailwind CSS 4](https://tailwindcss.com) |
 | UI Components | [Radix UI](https://www.radix-ui.com) + [shadcn/ui](https://ui.shadcn.com) |
+| Icons | [Lucide React](https://lucide.dev) |
 | Build Tool | [Vite](https://vitejs.dev) |
 | Deployment | [Cloudflare Workers](https://workers.cloudflare.com) via [Wrangler](https://developers.cloudflare.com/workers/wrangler/) |
 
@@ -95,21 +105,21 @@ See [`wrangler.jsonc`](wrangler.jsonc) for the worker configuration.
 
 ```
 src/
-├── assets/            # Static assets (logo, images)
-├── components/        # Feature & UI components
-│   ├── ui/            # shadcn/ui primitives
-│   ├── Base64Tool.tsx # Base64 encoder/decoder
+├── assets/              # Static assets (logo, images)
+├── components/          # Feature & UI components
+│   ├── ui/              # shadcn/ui primitives
+│   ├── Base64Tool.tsx   # Base64 encoder/decoder
 │   ├── JsonFormatter.tsx # JSON formatter with tree view
-│   ├── JsonView.tsx   # Collapsible JSON tree renderer
-│   ├── TextDiff.tsx   # Side-by-side text diff
-│   └── ThemeToggle.tsx # Dark/light theme switcher
-├── hooks/             # Custom React hooks
-├── lib/               # Utility functions
-├── routes/            # TanStack Router file-based routes
-│   ├── __root.tsx     # Root layout
-│   └── index.tsx      # Home page (tool tabs)
-├── router.tsx         # Router configuration
-└── styles.css         # Global styles & CSS variables
+│   ├── JsonView.tsx     # Collapsible JSON tree renderer
+│   ├── TextDiff.tsx     # Side-by-side text diff
+│   └── ThemeToggle.tsx  # Dark/light theme switcher
+├── hooks/               # Custom React hooks (useLocalStorage, useMobile)
+├── lib/                 # Utility functions
+├── routes/              # TanStack Router file-based routes
+│   ├── __root.tsx       # Root layout
+│   └── index.tsx        # Home page (tool tabs)
+├── router.tsx           # Router configuration
+└── styles.css           # Global styles & CSS variables
 ```
 
 ## 🤝 Contributing
