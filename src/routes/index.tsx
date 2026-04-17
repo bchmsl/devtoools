@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JsonFormatter } from "@/components/JsonFormatter";
 import { TextDiff } from "@/components/TextDiff";
+import { Base64Tool } from "@/components/Base64Tool";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Braces, Diff } from "lucide-react";
+import { Braces, Diff, Binary } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -41,6 +42,9 @@ function Index() {
             <TabsTrigger value="diff" className="gap-2">
               <Diff className="h-4 w-4" /> Text Diff
             </TabsTrigger>
+            <TabsTrigger value="base64" className="gap-2">
+              <Binary className="h-4 w-4" /> Base64
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="json">
@@ -48,6 +52,9 @@ function Index() {
           </TabsContent>
           <TabsContent value="diff">
             <TextDiff />
+          </TabsContent>
+          <TabsContent value="base64">
+            <Base64Tool />
           </TabsContent>
         </Tabs>
       </div>
