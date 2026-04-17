@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -7,13 +7,15 @@ type Json = string | number | boolean | null | Json[] | { [k: string]: Json };
 function Highlight({
   text,
   query,
-  className,
+  isFirst,
+  firstMatchRef,
 }: {
   text: string;
   query: string;
-  className?: string;
+  isFirst?: boolean;
+  firstMatchRef?: React.RefObject<HTMLElement | null>;
 }) {
-  if (!query) return <span className={className}>{text}</span>;
+  if (!query) return <span>{text}</span>;
   const lower = text.toLowerCase();
   const q = query.toLowerCase();
   const parts: Array<{ text: string; match: boolean }> = [];
@@ -28,20 +30,23 @@ function Highlight({
     parts.push({ text: text.slice(idx, idx + q.length), match: true });
     i = idx + q.length;
   }
+  let markIdx = 0;
   return (
-    <span className={className}>
-      {parts.map((p, idx) =>
-        p.match ? (
+    <span>
+      {parts.map((p, idx) => {
+        if (!p.match) return <span key={idx}>{p.text}</span>;
+        const attachRef = isFirst && markIdx === 0;
+        markIdx++;
+        return (
           <mark
             key={idx}
+            ref={attachRef ? (firstMatchRef as React.RefObject<HTMLElement>) : undefined}
             className="rounded-sm bg-primary/30 text-foreground"
           >
             {p.text}
           </mark>
-        ) : (
-          <span key={idx}>{p.text}</span>
-        ),
-      )}
+        );
+      })}
     </span>
   );
 }
@@ -49,21 +54,33 @@ function Highlight({
 function Primitive({
   value,
   query,
+  isFirstMatch,
+  firstMatchRef,
 }: {
   value: Exclude<Json, object>;
   query: string;
+  isFirstMatch?: boolean;
+  firstMatchRef?: React.RefObject<HTMLElement | null>;
 }) {
   if (value === null) return <span className="text-json-null">null</span>;
   if (typeof value === "string")
     return (
       <span className="text-json-string">
-        "<Highlight text={value} query={query} />"
+        "<Highlight text={value} query={query} isFirst={isFirstMatch} firstMatchRef={firstMatchRef} />"
       </span>
     );
   if (typeof value === "number")
-    return <span className="text-json-number">{value}</span>;
+    return (
+      <span className="text-json-number">
+        <Highlight text={String(value)} query={query} isFirst={isFirstMatch} firstMatchRef={firstMatchRef} />
+      </span>
+    );
   if (typeof value === "boolean")
-    return <span className="text-json-boolean">{String(value)}</span>;
+    return (
+      <span className="text-json-boolean">
+        <Highlight text={String(value)} query={query} isFirst={isFirstMatch} firstMatchRef={firstMatchRef} />
+      </span>
+    );
   return null;
 }
 
@@ -110,18 +127,46 @@ function nodeMatches(value: Json, q: string): boolean {
   );
 }
 
+// Find the path (array of keys/indices) to the first match in document order.
+function findFirstMatchPath(value: Json, q: string, path: string[] = []): string[] | null {
+  if (!q) return null;
+  if (value === null) return null;
+  if (typeof value === "string") return value.toLowerCase().includes(q) ? path : null;
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value).toLowerCase().includes(q) ? path : null;
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const r = findFirstMatchPath(value[i], q, [...path, String(i)]);
+      if (r) return r;
+    }
+    return null;
+  }
+  for (const [k, v] of Object.entries(value)) {
+    if (k.toLowerCase().includes(q)) return [...path, k];
+    const r = findFirstMatchPath(v, q, [...path, k]);
+    if (r) return r;
+  }
+  return null;
+}
+
 function Node({
   value,
   depth = 0,
   expandSignal,
   collapseSignal,
   query,
+  pathKey,
+  firstMatchPathKey,
+  firstMatchRef,
 }: {
   value: Json;
   depth?: number;
   expandSignal: number;
   collapseSignal: number;
   query: string;
+  pathKey: string;
+  firstMatchPathKey: string | null;
+  firstMatchRef: React.RefObject<HTMLElement | null>;
 }) {
   const [open, setOpen] = useState(depth < 2);
   const lowerQ = query.toLowerCase();
@@ -134,15 +179,23 @@ function Node({
     if (collapseSignal > 0) setOpen(false);
   }, [collapseSignal]);
 
-  // Auto-open nodes that contain matches
+  // When searching: open nodes that contain matches, collapse those that don't.
   useEffect(() => {
-    if (lowerQ && value !== null && typeof value === "object" && nodeMatches(value, lowerQ)) {
-      setOpen(true);
+    if (!lowerQ) return;
+    if (value !== null && typeof value === "object") {
+      setOpen(nodeMatches(value, lowerQ));
     }
   }, [lowerQ, value]);
 
   if (value === null || typeof value !== "object") {
-    return <Primitive value={value as Exclude<Json, object>} query={lowerQ} />;
+    return (
+      <Primitive
+        value={value as Exclude<Json, object>}
+        query={lowerQ}
+        isFirstMatch={!!lowerQ && pathKey === firstMatchPathKey}
+        firstMatchRef={firstMatchRef}
+      />
+    );
   }
 
   const isArray = Array.isArray(value);
@@ -164,26 +217,41 @@ function Node({
       />
       {open && (
         <div className="border-l border-border/60 ml-2 pl-3">
-          {entries.map(([k, v], i) => (
-            <div key={k} className="leading-6">
-              {!isArray && (
-                <>
-                  <span className="text-json-key">
-                    "<Highlight text={k} query={lowerQ} />"
-                  </span>
-                  <span className="text-json-punctuation">: </span>
-                </>
-              )}
-              <Node
-                value={v}
-                depth={depth + 1}
-                expandSignal={expandSignal}
-                collapseSignal={collapseSignal}
-                query={query}
-              />
-              {i < entries.length - 1 && <span className="text-json-punctuation">,</span>}
-            </div>
-          ))}
+          {entries.map(([k, v], i) => {
+            const childPath = pathKey ? `${pathKey}.${k}` : k;
+            const isKeyFirstMatch =
+              !!lowerQ && !isArray && childPath === firstMatchPathKey && k.toLowerCase().includes(lowerQ);
+            return (
+              <div key={k} className="leading-6">
+                {!isArray && (
+                  <>
+                    <span className="text-json-key">
+                      "
+                      <Highlight
+                        text={k}
+                        query={lowerQ}
+                        isFirst={isKeyFirstMatch}
+                        firstMatchRef={firstMatchRef}
+                      />
+                      "
+                    </span>
+                    <span className="text-json-punctuation">: </span>
+                  </>
+                )}
+                <Node
+                  value={v}
+                  depth={depth + 1}
+                  expandSignal={expandSignal}
+                  collapseSignal={collapseSignal}
+                  query={query}
+                  pathKey={childPath}
+                  firstMatchPathKey={firstMatchPathKey}
+                  firstMatchRef={firstMatchRef}
+                />
+                {i < entries.length - 1 && <span className="text-json-punctuation">,</span>}
+              </div>
+            );
+          })}
           <span className="text-json-punctuation">{isArray ? "]" : "}"}</span>
         </div>
       )}
@@ -202,6 +270,25 @@ export function JsonView({
   collapseSignal?: number;
   query?: string;
 }) {
+  const firstMatchRef = useRef<HTMLElement | null>(null);
+  const lowerQ = query.toLowerCase();
+
+  const firstMatchPathKey = lowerQ
+    ? (() => {
+        const path = findFirstMatchPath(value, lowerQ);
+        return path ? path.join(".") : null;
+      })()
+    : null;
+
+  useEffect(() => {
+    if (!lowerQ || !firstMatchPathKey) return;
+    // Wait for nodes to expand/collapse before scrolling.
+    const id = window.setTimeout(() => {
+      firstMatchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+    return () => window.clearTimeout(id);
+  }, [lowerQ, firstMatchPathKey]);
+
   return (
     <div className="font-mono text-sm whitespace-pre-wrap break-words">
       <Node
@@ -209,6 +296,9 @@ export function JsonView({
         expandSignal={expandSignal}
         collapseSignal={collapseSignal}
         query={query}
+        pathKey=""
+        firstMatchPathKey={firstMatchPathKey}
+        firstMatchRef={firstMatchRef}
       />
     </div>
   );
