@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JsonFormatter } from "@/components/JsonFormatter";
 import { TextDiff } from "@/components/TextDiff";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Braces, Diff } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -22,11 +23,14 @@ function Index() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-6xl px-4 py-10">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">DevTools</h1>
-          <p className="mt-1 text-muted-foreground">
-            Lightweight utilities for everyday development.
-          </p>
+        <header className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">DevTools</h1>
+            <p className="mt-1 text-muted-foreground">
+              Lightweight utilities for everyday development.
+            </p>
+          </div>
+          <ThemeToggle />
         </header>
 
         <Tabs defaultValue="json" className="w-full">
