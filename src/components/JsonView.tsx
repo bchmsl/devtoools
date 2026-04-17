@@ -342,6 +342,12 @@ function Node({
 // JsonView
 // ---------------------------------------------------------------------------
 
+export type JsonViewMatchInfo = {
+  /** 0..1 fractional Y position of each match within the scroll container content. -1 if unknown. */
+  positions: number[];
+  total: number;
+};
+
 export function JsonView({
   value,
   expandSignal = 0,
@@ -349,6 +355,8 @@ export function JsonView({
   query = "",
   activeMatchIndex = 0,
   onMatchCountChange,
+  onMatchPositionsChange,
+  scrollContainerRef,
 }: {
   value: Json;
   expandSignal?: number;
@@ -356,16 +364,15 @@ export function JsonView({
   query?: string;
   activeMatchIndex?: number;
   onMatchCountChange?: (count: number) => void;
+  onMatchPositionsChange?: (info: JsonViewMatchInfo) => void;
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }) {
   const refs = useRef<Map<number, HTMLElement>>(new Map());
   const lowerQ = query.toLowerCase();
 
-  // Pre-compute every match in document order. Each entry's array index is its
-  // global match index used by the navigation buttons.
   const { matches, keyMatches, valueMatches, openPaths } = useMemo(() => {
     const all: MatchInfo[] = [];
     if (lowerQ) collectMatches(value, lowerQ, [], "", all);
-
     const keyM = new Map<string, number[]>();
     const valM = new Map<string, number[]>();
     const opens = new Set<string>();
@@ -390,14 +397,11 @@ export function JsonView({
     onMatchCountChange?.(totalMatches);
   }, [totalMatches, onMatchCountChange]);
 
-  // Reset the ref registry on every render — children re-register synchronously.
   refs.current = new Map();
   const registerRef: RegisterRef = (globalIdx, el) => {
     if (el) refs.current.set(globalIdx, el);
   };
 
-  // Scroll to the active match after the tree has settled (auto-expand effects
-  // run after render, so wait a tick for the mark element to mount).
   useEffect(() => {
     if (!lowerQ || totalMatches === 0) return;
     let cancelled = false;
@@ -416,6 +420,39 @@ export function JsonView({
       window.clearTimeout(id);
     };
   }, [lowerQ, activeMatchIndex, totalMatches]);
+
+  // Bump after layout-affecting changes to recompute tick positions.
+  const [posRev, setPosRev] = useState(0);
+  useEffect(() => {
+    setPosRev((n) => n + 1);
+  }, [lowerQ, totalMatches, value, expandSignal, collapseSignal, activeMatchIndex]);
+
+  useEffect(() => {
+    if (!onMatchPositionsChange) return;
+    const container = scrollContainerRef?.current;
+    if (!container || totalMatches === 0 || !lowerQ) {
+      onMatchPositionsChange({ positions: [], total: 0 });
+      return;
+    }
+    const id = window.setTimeout(() => {
+      const containerRect = container.getBoundingClientRect();
+      const totalScroll = container.scrollHeight;
+      if (totalScroll <= 0) return;
+      const positions: number[] = [];
+      for (let i = 0; i < totalMatches; i++) {
+        const el = refs.current.get(i);
+        if (!el) {
+          positions.push(-1);
+          continue;
+        }
+        const r = el.getBoundingClientRect();
+        const y = r.top - containerRect.top + container.scrollTop + r.height / 2;
+        positions.push(y / totalScroll);
+      }
+      onMatchPositionsChange({ positions, total: totalMatches });
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [posRev, lowerQ, totalMatches, scrollContainerRef, onMatchPositionsChange]);
 
   return (
     <div className="font-mono text-sm whitespace-pre-wrap break-words">
