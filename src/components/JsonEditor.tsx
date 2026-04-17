@@ -67,8 +67,7 @@ function measureCharPosition(
     "textIndent", "whiteSpace", "wordWrap", "overflowWrap", "tabSize",
   ] as const;
   for (const p of props) {
-    // @ts-expect-error index style by name
-    mirror.style[p] = cs[p];
+    (mirror.style as unknown as Record<string, string>)[p] = (cs as unknown as Record<string, string>)[p];
   }
   mirror.style.position = "absolute";
   mirror.style.visibility = "hidden";
