@@ -11,25 +11,9 @@ const CLOSE: Record<string, string> = { "}": "{", "]": "[", ")": "(" };
 function findMatchingBracket(text: string, pos: number): number {
   const ch = text[pos];
   if (!ch) return -1;
-  const forward = ch in OPEN;
-  const backward = ch in CLOSE;
-  if (!forward && !backward) return -1;
-
-  const target = forward ? OPEN[ch] : CLOSE[ch];
-  const step = forward ? 1 : -1;
-  let depth = 0;
-  let inStr = false;
-  let strCh = "";
-
-  // Walk; track strings to ignore brackets inside them.
-  // For backward walk we also track strings, but simpler: scan forward from 0
-  // building a state map up to pos, then continue.
-  // To stay O(n) and simple, do a linear scan from start collecting bracket
-  // index pairs, then look up.
+  if (!(ch in OPEN) && !(ch in CLOSE)) return -1;
   const pairs = computePairs(text);
   return pairs.get(pos) ?? -1;
-  // unused vars to satisfy ts (kept for clarity)
-  void target; void step; void depth; void inStr; void strCh; void backward;
 }
 
 /** Compute bracket pair map for the entire text once. */
