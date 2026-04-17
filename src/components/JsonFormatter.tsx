@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { JsonEditor } from "./JsonEditor";
 import { ChevronDown, ChevronUp, Loader2, Search, X } from "lucide-react";
 import { JsonView, type JsonViewMatchInfo } from "./JsonView";
 import { MatchScrollbarOverlay } from "./MatchScrollbarOverlay";
@@ -125,12 +125,11 @@ export function JsonFormatter() {
             onChange={handleUpload}
           />
         </div>
-        <Textarea
+        <JsonEditor
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          spellCheck={false}
+          onChange={setInput}
           placeholder="Paste your JSON here..."
-          className="min-h-[480px] font-mono text-sm"
+          className="min-h-[480px]"
         />
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
