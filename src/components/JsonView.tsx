@@ -343,9 +343,13 @@ function Node({
 // ---------------------------------------------------------------------------
 
 export type JsonViewMatchInfo = {
-  /** 0..1 fractional Y position of each match within the scroll container content. -1 if unknown. */
+  /** Absolute Y position (px) of each match within the scroll container content. -1 if unknown. */
   positions: number[];
   total: number;
+  /** Full scrollable content height (scrollHeight) at the time of measurement. */
+  scrollHeight: number;
+  /** Visible viewport height (clientHeight) of the scroll container. */
+  clientHeight: number;
 };
 
 export function JsonView({
@@ -431,12 +435,13 @@ export function JsonView({
     if (!onMatchPositionsChange) return;
     const container = scrollContainerRef?.current;
     if (!container || totalMatches === 0 || !lowerQ) {
-      onMatchPositionsChange({ positions: [], total: 0 });
+      onMatchPositionsChange({ positions: [], total: 0, scrollHeight: 0, clientHeight: 0 });
       return;
     }
     const id = window.setTimeout(() => {
       const containerRect = container.getBoundingClientRect();
       const totalScroll = container.scrollHeight;
+      const visible = container.clientHeight;
       if (totalScroll <= 0) return;
       const positions: number[] = [];
       for (let i = 0; i < totalMatches; i++) {
