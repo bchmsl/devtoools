@@ -29,13 +29,16 @@ export function MatchScrollbarOverlay({
   topOffset?: number;
   bottomOffset?: number;
 }) {
-  // Track height available to ticks = visible viewport minus our offsets.
-  // The scrollbar thumb traverses [0, trackHeight - thumbHeight].
-  const trackHeight = Math.max(0, clientHeight - topOffset - bottomOffset);
+  // The native scrollbar spans the FULL clientHeight (it doesn't know about
+  // our sticky header / topOffset). We compute thumb position in that native
+  // coordinate space, then translate into overlay-local coords by subtracting
+  // topOffset. Otherwise ticks drift relative to the actual thumb.
+  const nativeTrack = Math.max(1, clientHeight);
   const maxScroll = Math.max(1, scrollHeight - clientHeight);
-  // Approximate native thumb height (browsers use ~ clientHeight/scrollHeight ratio).
-  const thumbHeight = Math.max(20, (clientHeight / Math.max(scrollHeight, 1)) * trackHeight);
-  const usableTrack = Math.max(1, trackHeight - thumbHeight);
+  // Browsers approximate thumb size as (clientHeight / scrollHeight) * track,
+  // clamped to a minimum (typically ~20px in WebKit/Blink).
+  const thumbHeight = Math.max(20, (clientHeight / Math.max(scrollHeight, 1)) * nativeTrack);
+  const usableTrack = Math.max(1, nativeTrack - thumbHeight);
 
   return (
     <div
@@ -52,10 +55,11 @@ export function MatchScrollbarOverlay({
           if (y < 0) return null;
           // Scroll position that would center the match in the viewport.
           const desiredScroll = Math.min(maxScroll, Math.max(0, y - clientHeight / 2));
-          // Where the thumb's TOP sits at that scroll position.
-          const thumbTop = (desiredScroll / maxScroll) * usableTrack;
-          // Place tick at the thumb's CENTER for that scroll.
-          const tickCenter = thumbTop + thumbHeight / 2;
+          // Thumb top in NATIVE scrollbar coords (origin = top of container).
+          const thumbTopNative = (desiredScroll / maxScroll) * usableTrack;
+          // Thumb center in native coords, then translate into overlay-local
+          // coords (overlay starts at topOffset within the container).
+          const tickCenter = thumbTopNative + thumbHeight / 2 - topOffset;
           const isActive = i === activeIndex;
           return (
             <button
