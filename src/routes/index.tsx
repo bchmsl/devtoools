@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "DevTools — JSON Formatter & Text Diff" },
+      { title: "DevToools — JSON Formatter & Text Diff" },
       {
         name: "description",
         content:
@@ -25,7 +25,7 @@ function Index() {
       <div className="mx-auto max-w-6xl px-4 py-10">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">DevTools</h1>
+            <h1 className="text-3xl font-bold tracking-tight">DevToools</h1>
             <p className="mt-1 text-muted-foreground">
               Lightweight utilities for everyday development.
             </p>
