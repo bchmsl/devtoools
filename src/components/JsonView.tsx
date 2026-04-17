@@ -342,6 +342,12 @@ function Node({
 // JsonView
 // ---------------------------------------------------------------------------
 
+export type JsonViewMatchInfo = {
+  /** 0..1 fractional Y position of each match within the scroll container content. -1 if unknown. */
+  positions: number[];
+  total: number;
+};
+
 export function JsonView({
   value,
   expandSignal = 0,
@@ -349,9 +355,8 @@ export function JsonView({
   query = "",
   activeMatchIndex = 0,
   onMatchCountChange,
-  onActiveMatchChange,
+  onMatchPositionsChange,
   scrollContainerRef,
-  scrollbarTopOffset = 0,
 }: {
   value: Json;
   expandSignal?: number;
@@ -359,9 +364,8 @@ export function JsonView({
   query?: string;
   activeMatchIndex?: number;
   onMatchCountChange?: (count: number) => void;
-  onActiveMatchChange?: (idx: number) => void;
+  onMatchPositionsChange?: (info: JsonViewMatchInfo) => void;
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
-  scrollbarTopOffset?: number;
 }) {
   const refs = useRef<Map<number, HTMLElement>>(new Map());
   const lowerQ = query.toLowerCase();
@@ -417,17 +421,17 @@ export function JsonView({
     };
   }, [lowerQ, activeMatchIndex, totalMatches]);
 
-  // Tick positions as fractions of scroll container's content height.
-  const [tickPositions, setTickPositions] = useState<number[]>([]);
-  const [tickRev, setTickRev] = useState(0);
+  // Bump after layout-affecting changes to recompute tick positions.
+  const [posRev, setPosRev] = useState(0);
   useEffect(() => {
-    setTickRev((n) => n + 1);
-  }, [lowerQ, totalMatches, value, expandSignal, collapseSignal]);
+    setPosRev((n) => n + 1);
+  }, [lowerQ, totalMatches, value, expandSignal, collapseSignal, activeMatchIndex]);
 
   useEffect(() => {
+    if (!onMatchPositionsChange) return;
     const container = scrollContainerRef?.current;
     if (!container || totalMatches === 0 || !lowerQ) {
-      setTickPositions([]);
+      onMatchPositionsChange({ positions: [], total: 0 });
       return;
     }
     const id = window.setTimeout(() => {
@@ -445,86 +449,25 @@ export function JsonView({
         const y = r.top - containerRect.top + container.scrollTop + r.height / 2;
         positions.push(y / totalScroll);
       }
-      setTickPositions(positions);
+      onMatchPositionsChange({ positions, total: totalMatches });
     }, 80);
     return () => window.clearTimeout(id);
-  }, [tickRev, lowerQ, totalMatches, scrollContainerRef]);
+  }, [posRev, lowerQ, totalMatches, scrollContainerRef, onMatchPositionsChange]);
 
   return (
-    <>
-      <div className="font-mono text-sm whitespace-pre-wrap break-words">
-        <Node
-          value={value}
-          expandSignal={expandSignal}
-          collapseSignal={collapseSignal}
-          query={query}
-          pathKey=""
-          keyMatches={keyMatches}
-          valueMatches={valueMatches}
-          openPaths={openPaths}
-          activeMatchIndex={activeMatchIndex}
-          registerRef={registerRef}
-        />
-      </div>
-      {lowerQ && totalMatches > 0 && tickPositions.length > 0 && (
-        <MatchTickOverlay
-          positions={tickPositions}
-          activeIndex={activeMatchIndex}
-          topOffset={scrollbarTopOffset}
-          onTickClick={(idx) => onActiveMatchChange?.(idx)}
-        />
-      )}
-    </>
-  );
-}
-
-function MatchTickOverlay({
-  positions,
-  activeIndex,
-  topOffset,
-  onTickClick,
-}: {
-  positions: number[];
-  activeIndex: number;
-  topOffset: number;
-  onTickClick: (idx: number) => void;
-}) {
-  return (
-    <div
-      className="pointer-events-none sticky float-right z-20"
-      style={{
-        top: topOffset,
-        right: 0,
-        width: 12,
-        height: `calc(100vh - ${topOffset}px)`,
-        maxHeight: `calc(100% - ${topOffset}px)`,
-        marginTop: -topOffset,
-      }}
-      aria-hidden="true"
-    >
-      <div className="relative w-full h-full">
-        {positions.map((frac, i) => {
-          if (frac < 0) return null;
-          const isActive = i === activeIndex;
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onTickClick(i)}
-              aria-label={`Jump to match ${i + 1}`}
-              className={cn(
-                "pointer-events-auto absolute right-0 rounded-sm transition-colors",
-                isActive ? "bg-primary" : "bg-primary/50 hover:bg-primary/80",
-              )}
-              style={{
-                top: `calc(${frac * 100}% - 1px)`,
-                height: isActive ? 4 : 2,
-                width: isActive ? 12 : 8,
-              }}
-            />
-          );
-        })}
-      </div>
+    <div className="font-mono text-sm whitespace-pre-wrap break-words">
+      <Node
+        value={value}
+        expandSignal={expandSignal}
+        collapseSignal={collapseSignal}
+        query={query}
+        pathKey=""
+        keyMatches={keyMatches}
+        valueMatches={valueMatches}
+        openPaths={openPaths}
+        activeMatchIndex={activeMatchIndex}
+        registerRef={registerRef}
+      />
     </div>
   );
 }
