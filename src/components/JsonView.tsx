@@ -349,6 +349,9 @@ export function JsonView({
   query = "",
   activeMatchIndex = 0,
   onMatchCountChange,
+  onActiveMatchChange,
+  scrollContainerRef,
+  scrollbarTopOffset = 0,
 }: {
   value: Json;
   expandSignal?: number;
@@ -356,16 +359,16 @@ export function JsonView({
   query?: string;
   activeMatchIndex?: number;
   onMatchCountChange?: (count: number) => void;
+  onActiveMatchChange?: (idx: number) => void;
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
+  scrollbarTopOffset?: number;
 }) {
   const refs = useRef<Map<number, HTMLElement>>(new Map());
   const lowerQ = query.toLowerCase();
 
-  // Pre-compute every match in document order. Each entry's array index is its
-  // global match index used by the navigation buttons.
   const { matches, keyMatches, valueMatches, openPaths } = useMemo(() => {
     const all: MatchInfo[] = [];
     if (lowerQ) collectMatches(value, lowerQ, [], "", all);
-
     const keyM = new Map<string, number[]>();
     const valM = new Map<string, number[]>();
     const opens = new Set<string>();
@@ -390,14 +393,11 @@ export function JsonView({
     onMatchCountChange?.(totalMatches);
   }, [totalMatches, onMatchCountChange]);
 
-  // Reset the ref registry on every render — children re-register synchronously.
   refs.current = new Map();
   const registerRef: RegisterRef = (globalIdx, el) => {
     if (el) refs.current.set(globalIdx, el);
   };
 
-  // Scroll to the active match after the tree has settled (auto-expand effects
-  // run after render, so wait a tick for the mark element to mount).
   useEffect(() => {
     if (!lowerQ || totalMatches === 0) return;
     let cancelled = false;
@@ -417,20 +417,114 @@ export function JsonView({
     };
   }, [lowerQ, activeMatchIndex, totalMatches]);
 
+  // Tick positions as fractions of scroll container's content height.
+  const [tickPositions, setTickPositions] = useState<number[]>([]);
+  const [tickRev, setTickRev] = useState(0);
+  useEffect(() => {
+    setTickRev((n) => n + 1);
+  }, [lowerQ, totalMatches, value, expandSignal, collapseSignal]);
+
+  useEffect(() => {
+    const container = scrollContainerRef?.current;
+    if (!container || totalMatches === 0 || !lowerQ) {
+      setTickPositions([]);
+      return;
+    }
+    const id = window.setTimeout(() => {
+      const containerRect = container.getBoundingClientRect();
+      const totalScroll = container.scrollHeight;
+      if (totalScroll <= 0) return;
+      const positions: number[] = [];
+      for (let i = 0; i < totalMatches; i++) {
+        const el = refs.current.get(i);
+        if (!el) {
+          positions.push(-1);
+          continue;
+        }
+        const r = el.getBoundingClientRect();
+        const y = r.top - containerRect.top + container.scrollTop + r.height / 2;
+        positions.push(y / totalScroll);
+      }
+      setTickPositions(positions);
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [tickRev, lowerQ, totalMatches, scrollContainerRef]);
+
   return (
-    <div className="font-mono text-sm whitespace-pre-wrap break-words">
-      <Node
-        value={value}
-        expandSignal={expandSignal}
-        collapseSignal={collapseSignal}
-        query={query}
-        pathKey=""
-        keyMatches={keyMatches}
-        valueMatches={valueMatches}
-        openPaths={openPaths}
-        activeMatchIndex={activeMatchIndex}
-        registerRef={registerRef}
-      />
+    <>
+      <div className="font-mono text-sm whitespace-pre-wrap break-words">
+        <Node
+          value={value}
+          expandSignal={expandSignal}
+          collapseSignal={collapseSignal}
+          query={query}
+          pathKey=""
+          keyMatches={keyMatches}
+          valueMatches={valueMatches}
+          openPaths={openPaths}
+          activeMatchIndex={activeMatchIndex}
+          registerRef={registerRef}
+        />
+      </div>
+      {lowerQ && totalMatches > 0 && tickPositions.length > 0 && (
+        <MatchTickOverlay
+          positions={tickPositions}
+          activeIndex={activeMatchIndex}
+          topOffset={scrollbarTopOffset}
+          onTickClick={(idx) => onActiveMatchChange?.(idx)}
+        />
+      )}
+    </>
+  );
+}
+
+function MatchTickOverlay({
+  positions,
+  activeIndex,
+  topOffset,
+  onTickClick,
+}: {
+  positions: number[];
+  activeIndex: number;
+  topOffset: number;
+  onTickClick: (idx: number) => void;
+}) {
+  return (
+    <div
+      className="pointer-events-none sticky float-right z-20"
+      style={{
+        top: topOffset,
+        right: 0,
+        width: 12,
+        height: `calc(100vh - ${topOffset}px)`,
+        maxHeight: `calc(100% - ${topOffset}px)`,
+        marginTop: -topOffset,
+      }}
+      aria-hidden="true"
+    >
+      <div className="relative w-full h-full">
+        {positions.map((frac, i) => {
+          if (frac < 0) return null;
+          const isActive = i === activeIndex;
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onTickClick(i)}
+              aria-label={`Jump to match ${i + 1}`}
+              className={cn(
+                "pointer-events-auto absolute right-0 rounded-sm transition-colors",
+                isActive ? "bg-primary" : "bg-primary/50 hover:bg-primary/80",
+              )}
+              style={{
+                top: `calc(${frac * 100}% - 1px)`,
+                height: isActive ? 4 : 2,
+                width: isActive ? 12 : 8,
+              }}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
