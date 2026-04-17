@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,8 +46,26 @@ function Collapsible({
   );
 }
 
-function Node({ value, depth = 0 }: { value: Json; depth?: number }) {
+function Node({
+  value,
+  depth = 0,
+  expandSignal,
+  collapseSignal,
+}: {
+  value: Json;
+  depth?: number;
+  expandSignal: number;
+  collapseSignal: number;
+}) {
   const [open, setOpen] = useState(depth < 2);
+
+  useEffect(() => {
+    if (expandSignal > 0) setOpen(true);
+  }, [expandSignal]);
+
+  useEffect(() => {
+    if (collapseSignal > 0) setOpen(false);
+  }, [collapseSignal]);
 
   if (value === null || typeof value !== "object") {
     return <Primitive value={value as Exclude<Json, object>} />;
@@ -80,7 +98,12 @@ function Node({ value, depth = 0 }: { value: Json; depth?: number }) {
                   <span className="text-json-punctuation">: </span>
                 </>
               )}
-              <Node value={v} depth={depth + 1} />
+              <Node
+                value={v}
+                depth={depth + 1}
+                expandSignal={expandSignal}
+                collapseSignal={collapseSignal}
+              />
               {i < entries.length - 1 && <span className="text-json-punctuation">,</span>}
             </div>
           ))}
@@ -91,10 +114,18 @@ function Node({ value, depth = 0 }: { value: Json; depth?: number }) {
   );
 }
 
-export function JsonView({ value }: { value: Json }) {
+export function JsonView({
+  value,
+  expandSignal = 0,
+  collapseSignal = 0,
+}: {
+  value: Json;
+  expandSignal?: number;
+  collapseSignal?: number;
+}) {
   return (
     <div className="font-mono text-sm whitespace-pre-wrap break-words">
-      <Node value={value} />
+      <Node value={value} expandSignal={expandSignal} collapseSignal={collapseSignal} />
     </div>
   );
 }
