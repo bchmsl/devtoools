@@ -176,9 +176,12 @@ export function countMatches(value: Json, q: string): number {
   if (typeof value === "string") return countOccurrences(value, q);
   if (typeof value === "number" || typeof value === "boolean")
     return countOccurrences(String(value), q);
-  if (Array.isArray(value)) return value.reduce((sum, v) => sum + countMatches(v, q), 0);
-  return Object.entries(value).reduce(
+  if (Array.isArray(value))
+    return value.reduce<number>((sum, v) => sum + countMatches(v, q), 0);
+  return Object.entries(value).reduce<number>(
     (sum, [k, v]) => sum + countOccurrences(k, q) + countMatches(v, q),
+    0,
+  );
     0,
   );
 }
