@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Search, X } from "lucide-react";
 import { JsonView } from "./JsonView";
 import { toast } from "sonner";
 import { useLocalStorage } from "@/hooks/use-local-storage";
@@ -11,6 +13,7 @@ export function JsonFormatter() {
   const [input, setInput] = useLocalStorage<string>("devtoools.json.input", DEFAULT_JSON);
   const [expandSignal, setExpandSignal] = useState(0);
   const [collapseSignal, setCollapseSignal] = useState(0);
+  const [search, setSearch] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const parsed = useMemo(() => {
@@ -144,6 +147,26 @@ export function JsonFormatter() {
             Copy formatted
           </Button>
         </div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search keys and values..."
+            disabled={!parsed.ok || parsed.value === undefined}
+            className="pl-8 pr-8"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <div className="rounded-lg border bg-card p-4 min-h-[480px] overflow-auto">
           {parsed.ok ? (
             parsed.value === undefined ? (
@@ -153,6 +176,7 @@ export function JsonFormatter() {
                 value={parsed.value}
                 expandSignal={expandSignal}
                 collapseSignal={collapseSignal}
+                query={search}
               />
             )
           ) : (
