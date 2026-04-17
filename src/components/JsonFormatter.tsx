@@ -175,95 +175,97 @@ export function JsonFormatter() {
             Copy formatted
           </Button>
         </div>
-        <div
-          ref={scrollContainerRef}
-          className="rounded-lg border bg-card min-h-[480px] max-h-[calc(100vh-12rem)] overflow-auto relative"
-        >
-          <div className="sticky top-0 z-10 flex items-center gap-2 bg-card/95 backdrop-blur-sm border-b px-3 py-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (e.shiftKey) goPrev();
-                    else goNext();
+        <div className="relative">
+          <div
+            ref={scrollContainerRef}
+            className="rounded-lg border bg-card min-h-[480px] max-h-[calc(100vh-12rem)] overflow-auto"
+          >
+            <div className="sticky top-0 z-10 flex items-center gap-2 bg-card/95 backdrop-blur-sm border-b px-3 py-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (e.shiftKey) goPrev();
+                      else goNext();
+                    }
+                  }}
+                  placeholder={
+                    isHuge
+                      ? "Search (min 2 chars on large data)..."
+                      : "Search keys and values..."
                   }
-                }}
-                placeholder={
-                  isHuge
-                    ? "Search (min 2 chars on large data)..."
-                    : "Search keys and values..."
-                }
-                disabled={!parsed.ok || parsed.value === undefined}
-                className="pl-8 pr-24 h-8"
-              />
-              {search && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                  {isSearchPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  ) : (
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {effectiveSearch === ""
-                        ? "—"
-                        : matchCount === 0
-                          ? "0/0"
-                          : `${activeMatch + 1}/${matchCount}`}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setSearch("")}
-                    className="text-muted-foreground hover:text-foreground"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+                  disabled={!parsed.ok || parsed.value === undefined}
+                  className="pl-8 pr-24 h-8"
+                />
+                {search && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    {isSearchPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {effectiveSearch === ""
+                          ? "—"
+                          : matchCount === 0
+                            ? "0/0"
+                            : `${activeMatch + 1}/${matchCount}`}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Clear search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={goPrev}
+                disabled={!effectiveSearch || matchCount === 0}
+                aria-label="Previous match"
+                className="h-8 w-8 shrink-0"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={goNext}
+                disabled={!effectiveSearch || matchCount === 0}
+                aria-label="Next match"
+                className="h-8 w-8 shrink-0"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-4 pr-6">
+              {parsed.ok ? (
+                parsed.value === undefined ? (
+                  <p className="text-sm text-muted-foreground">Output will appear here.</p>
+                ) : (
+                  <JsonView
+                    value={parsed.value}
+                    expandSignal={expandSignal}
+                    collapseSignal={collapseSignal}
+                    query={effectiveSearch}
+                    activeMatchIndex={activeMatch}
+                    onMatchCountChange={setMatchCount}
+                    onMatchPositionsChange={setMatchInfo}
+                    scrollContainerRef={scrollContainerRef}
+                  />
+                )
+              ) : (
+                <p className="text-sm text-muted-foreground">Fix errors to preview JSON.</p>
               )}
             </div>
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={goPrev}
-              disabled={!effectiveSearch || matchCount === 0}
-              aria-label="Previous match"
-              className="h-8 w-8 shrink-0"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={goNext}
-              disabled={!effectiveSearch || matchCount === 0}
-              aria-label="Next match"
-              className="h-8 w-8 shrink-0"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="p-4 pr-6">
-            {parsed.ok ? (
-              parsed.value === undefined ? (
-                <p className="text-sm text-muted-foreground">Output will appear here.</p>
-              ) : (
-                <JsonView
-                  value={parsed.value}
-                  expandSignal={expandSignal}
-                  collapseSignal={collapseSignal}
-                  query={effectiveSearch}
-                  activeMatchIndex={activeMatch}
-                  onMatchCountChange={setMatchCount}
-                  onMatchPositionsChange={setMatchInfo}
-                  scrollContainerRef={scrollContainerRef}
-                />
-              )
-            ) : (
-              <p className="text-sm text-muted-foreground">Fix errors to preview JSON.</p>
-            )}
           </div>
           {effectiveSearch && matchInfo.total > 0 && (
             <MatchScrollbarOverlay
@@ -271,6 +273,7 @@ export function JsonFormatter() {
               activeIndex={activeMatch}
               onTickClick={(idx) => setActiveMatch(idx)}
               topOffset={48}
+              bottomOffset={0}
             />
           )}
         </div>
