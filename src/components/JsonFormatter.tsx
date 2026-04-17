@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { JsonEditor } from "./JsonEditor";
 import { ChevronDown, ChevronUp, Loader2, Search, X } from "lucide-react";
 import { JsonView, type JsonViewMatchInfo } from "./JsonView";
 import { MatchScrollbarOverlay } from "./MatchScrollbarOverlay";
