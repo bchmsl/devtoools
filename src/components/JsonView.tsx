@@ -452,9 +452,9 @@ export function JsonView({
         }
         const r = el.getBoundingClientRect();
         const y = r.top - containerRect.top + container.scrollTop + r.height / 2;
-        positions.push(y / totalScroll);
+        positions.push(y);
       }
-      onMatchPositionsChange({ positions, total: totalMatches });
+      onMatchPositionsChange({ positions, total: totalMatches, scrollHeight: totalScroll, clientHeight: visible });
     }, 80);
     return () => window.clearTimeout(id);
   }, [posRev, lowerQ, totalMatches, scrollContainerRef, onMatchPositionsChange]);
