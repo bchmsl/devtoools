@@ -26,7 +26,9 @@ export function JsonFormatter() {
   const isSearchPending = search !== debouncedSearch;
   const [matchCount, setMatchCount] = useState(0);
   const [activeMatch, setActiveMatch] = useState(0);
+  const [matchInfo, setMatchInfo] = useState<JsonViewMatchInfo>({ positions: [], total: 0 });
   const fileRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Reset active match when the (effective) search term changes.
   useEffect(() => {
